@@ -129,11 +129,28 @@ async function sendMessage(event) {
   chat.messages.push(assistant);
   saveState();
   render();
+  let pendingRender = null;
+  const renderStreamUpdate = () => {
+    if (pendingRender !== null) return;
+    pendingRender = setTimeout(() => {
+      pendingRender = null;
+      saveState();
+      render();
+    }, 80);
+  };
   try {
-    const response = await getResponse(chat, chunk => { assistant.content += chunk; saveState(); render(); });
+    const response = await getResponse(chat, chunk => {
+      assistant.content += chunk;
+      renderStreamUpdate();
+    });
+    if (pendingRender !== null) {
+      clearTimeout(pendingRender);
+      pendingRender = null;
+    }
     if (response && !assistant.content) assistant.content = response;
-    if (!assistant.content) assistant.content = 'I did not receive a response. Connect Puter AI or add a provider in Settings, then try again.';
+    if (!assistant.content) assistant.content = 'I did not receive a response. Connect an AI provider in Settings, then try again.';
   } catch (error) {
+    if (pendingRender !== null) clearTimeout(pendingRender);
     console.error('Peaceable failed to answer the message.', error);
     assistant.content = 'I could not complete that request. Check your AI provider connection and try again.';
   } finally {
@@ -159,7 +176,14 @@ async function getResponse(chat, onChunk = () => {}) {
   const custom = state.settings.providers.find(provider => provider.id === state.settings.activeProviderId);
   if (custom) { try { return await customProviderResponse(custom, messages, onChunk); } catch (error) { console.warn('Custom provider unavailable, trying fallback', error); } }
   if (liveConfig.live) { try { const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: selectedModel, messages: chat.messages.slice(0, -1), system: CODING_SYSTEM_PROMPT, stream: true }) }); if (!response.ok) throw new Error((await response.json()).error || 'Live model request failed.'); const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let full = ''; while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const events = buffer.split('\n\n'); buffer = events.pop() || ''; for (const event of events) { const raw = event.split('\n').find(line => line.startsWith('data:'))?.slice(5).trim(); if (!raw || raw === '[DONE]') continue; const chunk = JSON.parse(raw); if (chunk.text) { full += chunk.text; onChunk(chunk.text); } } } return full; } catch (error) { console.warn('Server provider unavailable, trying Puter', error); } }
-  if (window.puter?.ai?.chat) { try { const response = await window.puter.ai.chat(messages, { model: selectedModelInfo().id, stream: true }); let full = ''; for await (const part of response) { const text = typeof part === 'string' ? part : part?.text || part?.delta?.text || part?.message?.content || ''; if (text) { full += text; onChunk(text); } } if (full) return full; } catch (error) { console.warn('Puter AI unavailable, using offline demo response', error); } }
+  // Puter is optional. Never invoke its AI endpoint for signed-out visitors,
+  // because the SDK may wait for an authentication flow and make feedback feel stuck.
+  let puterSignedIn = false;
+  try {
+    puterSignedIn = typeof window.puter?.auth?.isSignedIn === 'function'
+      && await Promise.resolve(window.puter.auth.isSignedIn());
+  } catch (error) { console.warn('Could not check Puter sign-in state', error); }
+  if (puterSignedIn && window.puter?.ai?.chat) { try { const response = await window.puter.ai.chat(messages, { model: selectedModelInfo().id, stream: true }); let full = ''; for await (const part of response) { const text = typeof part === 'string' ? part : part?.text || part?.delta?.text || part?.message?.content || ''; if (text) { full += text; onChunk(text); } } if (full) return full; } catch (error) { console.warn('Puter AI unavailable, using offline demo response', error); } }
   await new Promise(resolve => setTimeout(resolve, 350)); const text = [...chat.messages].reverse().find(message => message.role === 'user')?.content || ''; const lower = text.toLowerCase(); const demo = lower.includes('html') || lower.includes('website') ? 'I can create that offline too. Ask me for a complete HTML file, then use **Save file** and **Export project ZIP**.\n\n```html\n<!doctype html>\n<html lang="en">\n<head><meta charset="utf-8"><title>Peaceable starter</title></head>\n<body><main><h1>Hello from Peaceable</h1><p>Replace this with your idea.</p></main></body>\n</html>\n```' : lower.includes('debug') || lower.includes('code') ? 'Paste the code you want to work on and I’ll help structure the fix. When AI is connected, I can generate complete files and explain every change.' : lower.includes('plan') || lower.includes('project') ? 'Absolutely. Let’s make this concrete.\n\n**A simple way to start:**\n1. Define the outcome.\n2. Break it into small milestones.\n3. Create the first runnable file.\n\nAsk me to create an HTML, JavaScript, Python, Markdown, or JSON file.' : 'I’m ready to help you build, debug, and export files. Connect Puter AI or add a provider in Settings for full coding responses.'; for (const chunk of demo.match(/.{1,18}(?:\s+|$)/g) || [demo]) { onChunk(chunk); await new Promise(resolve => setTimeout(resolve, 20)); } return '';
 }
 
