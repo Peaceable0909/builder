@@ -126,6 +126,6 @@ async function main() {
       return serveStatic(req, res);
     } catch (error) { json(res, error.status || 500, { error: error.message || 'Unexpected server error' }); }
   });
-  server.listen(port, '0.0.0.0', () => console.log(`Aster running on http://localhost:${port} (${isProduction ? 'production' : 'development'})`));
+  server.listen(port, '0.0.0.0', () => console.log(`Peaceable running on http://localhost:${port} (${isProduction ? 'production' : 'development'})`));
 }
 main().catch(error => { console.error(error); process.exit(1); });

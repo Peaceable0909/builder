@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'aster-chat-state-v1';
+const STORAGE_KEY = 'peaceable-chat-state-v1';
 
 const icons = {
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/><path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z"/></svg>',
@@ -12,11 +12,11 @@ const icons = {
 };
 
 const starterChats = [
-  { id: 'welcome', title: 'Welcome to Aster', messages: [{ role: 'assistant', content: 'Hello — I’m Aster. I can help you think through a problem, write and edit, learn something new, or turn a rough idea into a clear plan. What would you like to work on?' }] }
+  { id: 'welcome', title: 'Welcome to Peaceable', messages: [{ role: 'assistant', content: 'Hello — I’m Peaceable. I can help you think through a problem, write and edit, learn something new, or turn a rough idea into a clear plan. What would you like to work on?' }] }
 ];
 
 let state = loadState();
-let selectedModel = 'Aster Sonnet';
+let selectedModel = 'Peaceable Sonnet';
 let attachedFile = null;
 const artifactSources = new Map();
 let liveConfig = { live: false, provider: null };
@@ -62,7 +62,7 @@ function render() {
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-top">
-          <button class="brand" data-action="home" aria-label="Aster home"><span class="brand-mark">${icons.spark}</span><span>Aster</span></button>
+          <button class="brand" data-action="home" aria-label="Peaceable home"><span class="brand-mark">${icons.spark}</span><span>Peaceable</span></button>
           <button class="icon-btn mobile-only" data-action="close-sidebar" aria-label="Close sidebar">×</button>
         </div>
         <button class="new-chat" data-action="new-chat">${icons.plus}<span>New conversation</span><kbd>⌘ K</kbd></button>
@@ -76,15 +76,15 @@ function render() {
       <main class="main-panel">
         <header class="topbar">
           <button class="icon-btn menu-btn" data-action="toggle-sidebar" aria-label="Open sidebar">${icons.menu}</button>
-          <div class="model-picker"><button class="model-button" data-action="model">${selectedModel}<span class="chevron">⌄</span></button><div class="model-menu" id="model-menu"><button data-model="Aster Sonnet"><strong>Aster Sonnet</strong><small>Balanced and thoughtful</small></button><button data-model="Aster Opus"><strong>Aster Opus</strong><small>Deepest reasoning</small></button><button data-model="Aster Haiku"><strong>Aster Haiku</strong><small>Fast and focused</small></button></div></div>
+          <div class="model-picker"><button class="model-button" data-action="model">${selectedModel}<span class="chevron">⌄</span></button><div class="model-menu" id="model-menu"><button data-model="Peaceable Sonnet"><strong>Peaceable Sonnet</strong><small>Balanced and thoughtful</small></button><button data-model="Peaceable Opus"><strong>Peaceable Opus</strong><small>Deepest reasoning</small></button><button data-model="Peaceable Haiku"><strong>Peaceable Haiku</strong><small>Fast and focused</small></button></div></div>
           <div class="topbar-actions"><button class="icon-btn desktop-theme" data-action="theme" aria-label="Toggle theme">${state.dark ? icons.sun : icons.moon}</button><button class="user-chip">Y</button></div>
         </header>
         <section class="conversation" id="conversation"><div class="conversation-inner">
           ${chat.messages.length <= 1 ? `<div class="welcome"><div class="welcome-mark">${icons.spark}</div><p class="eyebrow">Good to see you</p><h1>What’s on your mind?</h1><p class="welcome-copy">A calm space for thinking, creating, and getting things done.</p><div class="suggestions"><button data-suggestion="Help me plan a project from scratch">Plan a project <span>→</span></button><button data-suggestion="Explain this topic to me simply">Learn something <span>→</span></button><button data-suggestion="Help me improve this piece of writing">Improve my writing <span>→</span></button><button data-suggestion="Help me think through a difficult decision">Think it through <span>→</span></button></div></div>` : ''}
-          <div class="messages">${chat.messages.map((message, index) => message.role === 'user' ? `<article class="message user-message"><div class="message-bubble">${renderMarkdown(message.content)}${message.attachment ? `<div class="attachment-pill">${icons.paperclip}<span>${escapeHtml(message.attachment)}</span></div>` : ''}</div></article>` : `<article class="message assistant-message"><div class="assistant-avatar">${icons.spark}</div><div class="assistant-body"><div class="message-meta"><strong>Aster</strong><span>now</span></div><div class="message-text">${renderMarkdown(message.content)}</div><div class="message-tools"><button data-copy="${index}" aria-label="Copy response">${icons.copy}</button><button aria-label="Good response">◯</button><button aria-label="Bad response">◌</button></div></div></article>`).join('')}</div>
-          <div class="typing" id="typing"><span></span><span></span><span></span><em>Aster is thinking</em></div>
+          <div class="messages">${chat.messages.map((message, index) => message.role === 'user' ? `<article class="message user-message"><div class="message-bubble">${renderMarkdown(message.content)}${message.attachment ? `<div class="attachment-pill">${icons.paperclip}<span>${escapeHtml(message.attachment)}</span></div>` : ''}</div></article>` : `<article class="message assistant-message"><div class="assistant-avatar">${icons.spark}</div><div class="assistant-body"><div class="message-meta"><strong>Peaceable</strong><span>now</span></div><div class="message-text">${renderMarkdown(message.content)}</div><div class="message-tools"><button data-copy="${index}" aria-label="Copy response">${icons.copy}</button><button aria-label="Good response">◯</button><button aria-label="Bad response">◌</button></div></div></article>`).join('')}</div>
+          <div class="typing" id="typing"><span></span><span></span><span></span><em>Peaceable is thinking</em></div>
         </div></section>
-        <footer class="composer-wrap"><form class="composer" id="composer"><div class="attachment-preview" id="attachment-preview"></div><textarea id="prompt" rows="1" placeholder="Message Aster..." aria-label="Message Aster"></textarea><div class="composer-bottom"><div class="composer-actions"><button type="button" class="composer-icon" data-action="attach" aria-label="Attach file">${icons.paperclip}</button><input id="file-input" type="file" hidden /><span class="hint">Aster can make mistakes. Check important info.</span></div><button class="send-btn" type="submit" aria-label="Send message">${icons.arrow}</button></div></form></footer>
+        <footer class="composer-wrap"><form class="composer" id="composer"><div class="attachment-preview" id="attachment-preview"></div><textarea id="prompt" rows="1" placeholder="Message Peaceable..." aria-label="Message Peaceable"></textarea><div class="composer-bottom"><div class="composer-actions"><button type="button" class="composer-icon" data-action="attach" aria-label="Attach file">${icons.paperclip}</button><input id="file-input" type="file" hidden /><span class="hint">Peaceable can make mistakes. Check important info.</span></div><button class="send-btn" type="submit" aria-label="Send message">${icons.arrow}</button></div></form></footer>
       </main>
     </div>`;
   bindEvents();
@@ -162,7 +162,7 @@ async function getResponse(chat, onChunk = () => {}) {
     }
   }
   if (window.puter?.ai?.chat) {
-    try { const result = await window.puter.ai.chat(text, { model: selectedModel.toLowerCase().replace('aster ', 'claude-'), stream: false }); return typeof result === 'string' ? result : result?.message?.content || result?.text || 'I’m ready to help. What should we explore next?'; } catch (error) { console.warn('Puter AI unavailable, using demo response', error); }
+    try { const result = await window.puter.ai.chat(text, { model: selectedModel.toLowerCase().replace('peaceable ', 'claude-'), stream: false }); return typeof result === 'string' ? result : result?.message?.content || result?.text || 'I’m ready to help. What should we explore next?'; } catch (error) { console.warn('Puter AI unavailable, using demo response', error); }
   }
   await new Promise(resolve => setTimeout(resolve, 350));
   const lower = text.toLowerCase();
@@ -190,9 +190,9 @@ function mountChat() {
   try {
     render();
   } catch (error) {
-    console.error('Aster failed to render; retrying after the document is ready.', error);
+    console.error('Peaceable failed to render; retrying after the document is ready.', error);
     window.addEventListener('DOMContentLoaded', () => {
-      try { render(); } catch (retryError) { console.error('Aster render retry failed.', retryError); }
+      try { render(); } catch (retryError) { console.error('Peaceable render retry failed.', retryError); }
     }, { once: true });
   }
 }

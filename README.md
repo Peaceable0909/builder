@@ -1,5 +1,5 @@
 <h3 align="center"><img width="100" alt="Build logo" src="./icon-256.png"></h3>
-<h3 align="center">Aster — a calm, capable AI chat workspace</h3>
+<h3 align="center">Peaceable — a calm, capable AI chat workspace</h3>
 
 <p align="center">
     <a href="https://builder.puter.com/"><strong>« LIVE DEMO »</strong></a>
@@ -18,9 +18,9 @@
 
 <br>
 
-## Aster Chat
+## Peaceable Chat
 
-This fork turns the Puter builder shell into Aster, a Claude-inspired chat workspace. It includes local conversation history, model selection, attachments, code syntax highlighting, and sandboxed HTML artifact previews. It can run in demo mode without a key or connect to Anthropic Claude or OpenAI through the server-side proxy in `server.mjs`.
+This fork turns the Puter builder shell into Peaceable, a Claude-inspired chat workspace. It includes local conversation history, model selection, attachments, code syntax highlighting, and sandboxed HTML artifact previews. It can run in demo mode without a key or connect to Anthropic Claude or OpenAI through the server-side proxy in `server.mjs`.
 
 Responses from configured providers stream into the conversation in real time over Server-Sent Events. If no provider key is configured, the site remains usable: it uses local demo responses and simulates the same streaming behavior without making any external API request.
 
