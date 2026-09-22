@@ -112,6 +112,29 @@ function bindEvents() {
   document.querySelectorAll('[data-delete-provider]').forEach(button => button.addEventListener('click', () => { const index = Number(button.dataset.deleteProvider); const removed = state.settings.providers.splice(index, 1)[0]; if (removed?.id === state.settings.activeProviderId) state.settings.activeProviderId = ''; saveState(); render(); }));
 }
 
+async function sendMessage(event) {
+  event.preventDefault();
+  const input = document.querySelector('#prompt');
+  const text = input?.value.trim();
+  if (!text || document.querySelector('#typing')?.classList.contains('visible')) return;
+  const chat = activeChat();
+  chat.messages.push({ role: 'user', content: text, attachment: attachedFile?.name });
+  if (chat.title === 'New conversation') chat.title = text.slice(0, 34);
+  attachedFile = null;
+  saveState();
+  render();
+  document.querySelector('#typing')?.classList.add('visible');
+  document.querySelector('#prompt')?.setAttribute('disabled', 'disabled');
+  const assistant = { role: 'assistant', content: '' };
+  chat.messages.push(assistant);
+  saveState();
+  render();
+  const response = await getResponse(chat, chunk => { assistant.content += chunk; saveState(); render(); });
+  if (response && !assistant.content) assistant.content = response;
+  saveState();
+  render();
+}
+
 function handleAction(action) { if (action === 'new-chat') { const id = `chat-${Date.now()}`; state.chats.unshift({ id, title: 'New conversation', messages: [] }); state.activeId = id; saveState(); render(); } else if (action === 'theme') { state.dark = !state.dark; saveState(); render(); } else if (action === 'toggle-sidebar') document.querySelector('#sidebar')?.classList.toggle('open'); else if (action === 'close-sidebar') document.querySelector('#sidebar')?.classList.remove('open'); else if (action === 'models') { activePanel = 'models'; render(); } else if (action === 'settings') { activePanel = 'settings'; render(); } else if (action === 'files') { activePanel = 'files'; render(); } else if (action === 'close-panel') { activePanel = null; render(); } else if (action === 'export-chat-txt') exportChat('txt'); else if (action === 'export-chat-docx') exportChat('docx'); else if (action === 'export-chat-pdf') exportChat('pdf'); else if (action === 'export-project') exportProject(); else if (action === 'save-puter') saveToPuter(); else if (action === 'clear-settings') { state.settings.providers = []; state.settings.activeProviderId = ''; saveState(); render(); } else if (action === 'home') { state.activeId = state.chats[0].id; activePanel = null; saveState(); render(); } }
 
 function chatText() { return activeChat().messages.map(message => `${message.role.toUpperCase()}\n${message.content}`).join('\n\n'); }
