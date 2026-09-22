@@ -70,9 +70,8 @@ const SCRIPTS = [
   'js/app.js',
   'js/versions.js',
   'js/issues.js',
-  // PWA runtime (SW registration + update/install UX). Last so window.showToast
-  // and the rest of the app are already defined; runs its work after `load`.
   'js/pwa.js',
+  'js/chat.js',
 ];
 
 // Every URL the generated-app runtime (src/runtime.js) must be reachable at.
