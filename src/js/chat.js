@@ -18,6 +18,8 @@ const starterChats = [
 let state = loadState();
 let selectedModel = 'Aster Sonnet';
 let attachedFile = null;
+const artifactSources = new Map();
+let liveConfig = { live: false, provider: null };
 
 function loadState() {
   try {
@@ -30,12 +32,25 @@ function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 function activeChat() { return state.chats.find(chat => chat.id === state.activeId) || state.chats[0]; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char])); }
 function renderMarkdown(text) {
-  let html = escapeHtml(text);
-  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  const blocks = [];
+  const withPlaceholders = String(text).replace(/```\s*([\w+-]*)\s*\n?([\s\S]*?)```/g, (_, language, code) => {
+    const id = `code-${artifactSources.size}-${Math.random().toString(36).slice(2, 8)}`;
+    const lang = (language || 'text').toLowerCase();
+    artifactSources.set(id, { code, language: lang });
+    blocks.push({ id, lang, code });
+    return `\n@@CODE_BLOCK_${blocks.length - 1}@@\n`;
+  });
+  let html = escapeHtml(withPlaceholders);
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h2>$1</h2>');
   html = html.replace(/\n/g, '<br>');
+  blocks.forEach((block, index) => {
+    const language = escapeHtml(block.lang);
+    const highlighted = escapeHtml(block.code);
+    const artifact = block.lang === 'html' || block.lang === 'htm' ? `<div class="artifact-panel" data-artifact="${block.id}"><div class="artifact-toolbar"><strong>Artifact preview</strong><span>HTML</span><button type="button" data-artifact-action="refresh" data-artifact-id="${block.id}">Refresh</button></div><iframe title="Artifact preview" sandbox="allow-scripts"></iframe></div>` : '';
+    html = html.replace(`@@CODE_BLOCK_${index}@@`, `<div class="code-shell"><div class="code-toolbar"><span>${language}</span><button type="button" data-copy-code="${block.id}">Copy</button></div><pre><code id="${block.id}" class="language-${language}">${highlighted}</code></pre></div>${artifact}`);
+  });
   return html;
 }
 function chatTitle(chat) { return chat.title || chat.messages.find(m => m.role === 'user')?.content?.slice(0, 34) || 'New conversation'; }
@@ -73,6 +88,7 @@ function render() {
       </main>
     </div>`;
   bindEvents();
+  highlightCode();
   document.querySelector('#prompt')?.focus();
   requestAnimationFrame(() => document.querySelector('#conversation')?.scrollTo(0, 99999));
 }
@@ -83,6 +99,9 @@ function bindEvents() {
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => handleAction(button.dataset.action)));
   document.querySelectorAll('[data-model]').forEach(button => button.addEventListener('click', () => { selectedModel = button.dataset.model; document.querySelector('#model-menu').classList.remove('open'); render(); }));
   document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => { const message = activeChat().messages[Number(button.dataset.copy)]; await navigator.clipboard?.writeText(message.content); button.classList.add('copied'); setTimeout(() => button.classList.remove('copied'), 900); }));
+  document.querySelectorAll('[data-copy-code]').forEach(button => button.addEventListener('click', async () => { await navigator.clipboard?.writeText(artifactSources.get(button.dataset.copyCode)?.code || ''); button.textContent = 'Copied'; setTimeout(() => { button.textContent = 'Copy'; }, 900); }));
+  document.querySelectorAll('[data-artifact]').forEach(panel => { const source = artifactSources.get(panel.dataset.artifact); const frame = panel.querySelector('iframe'); if (source && frame) frame.srcdoc = source.code; });
+  document.querySelectorAll('[data-artifact-action="refresh"]').forEach(button => button.addEventListener('click', () => { const panel = document.querySelector(`[data-artifact="${button.dataset.artifactId}"]`); const source = artifactSources.get(button.dataset.artifactId); if (panel && source) panel.querySelector('iframe').srcdoc = source.code; }));
   document.querySelector('#composer')?.addEventListener('submit', sendMessage);
   const prompt = document.querySelector('#prompt');
   prompt?.addEventListener('input', () => { prompt.style.height = 'auto'; prompt.style.height = `${Math.min(prompt.scrollHeight, 180)}px`; });
@@ -103,10 +122,22 @@ async function sendMessage(event) {
   event.preventDefault(); const input = document.querySelector('#prompt'); const text = input.value.trim(); if (!text || document.querySelector('#typing').classList.contains('visible')) return;
   const chat = activeChat(); chat.messages.push({ role: 'user', content: text, attachment: attachedFile?.name }); if (chat.title === 'New conversation') chat.title = text.slice(0, 34); attachedFile = null; saveState(); render();
   const typing = document.querySelector('#typing'); typing.classList.add('visible'); document.querySelector('#prompt').disabled = true;
-  const response = await getResponse(text);
+  const response = await getResponse(chat);
   chat.messages.push({ role: 'assistant', content: response }); saveState(); render();
 }
-async function getResponse(text) {
+async function getResponse(chat) {
+  const text = chat.messages.at(-1)?.content || '';
+  if (liveConfig.live) {
+    try {
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: selectedModel, messages: chat.messages }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Live model request failed.');
+      return result.content;
+    } catch (error) {
+      console.error(error);
+      return `I couldn’t reach the configured ${liveConfig.provider || 'LLM'} provider. Check the server logs and API key, then try again.\n\n_${error.message}_`;
+    }
+  }
   if (window.puter?.ai?.chat) {
     try { const result = await window.puter.ai.chat(text, { model: selectedModel.toLowerCase().replace('aster ', 'claude-'), stream: false }); return typeof result === 'string' ? result : result?.message?.content || result?.text || 'I’m ready to help. What should we explore next?'; } catch (error) { console.warn('Puter AI unavailable, using demo response', error); }
   }
@@ -119,4 +150,10 @@ async function getResponse(text) {
 }
 
 window.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); handleAction('new-chat'); } if (event.key === 'Escape') document.querySelector('#model-menu')?.classList.remove('open'); });
+function highlightCode() {
+  document.querySelectorAll('.code-shell code').forEach(node => {
+    if (window.hljs) window.hljs.highlightElement(node);
+  });
+}
+fetch('/api/config').then(response => response.ok ? response.json() : null).then(config => { if (config) { liveConfig = config; } }).catch(() => {});
 render();

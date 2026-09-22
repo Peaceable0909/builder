@@ -79,9 +79,18 @@ h1 { margin: 0; font-size: clamp(32px, 4vw, 47px); line-height: 1.08; letter-spa
 .message-text { font-size: 15px; line-height: 1.75; }
 .message-text h2, .message-text h3 { font-size: 15px; margin: 15px 0 6px; }
 .message-text strong { font-weight: 650; }
-.message-text pre { overflow-x: auto; background: #1f211f; color: #e7e5df; padding: 13px; border-radius: 8px; font-size: 12px; }
+.code-shell { overflow: hidden; margin: 12px 0; border: 1px solid #3a3d3b; border-radius: 9px; background: #1f211f; }
+.code-toolbar, .artifact-toolbar { display: flex; align-items: center; gap: 9px; padding: 7px 10px; color: #a9aaa4; background: #292c2a; font-size: 10px; }
+.code-toolbar span { color: #d1d0c8; text-transform: uppercase; letter-spacing: .08em; }
+.code-toolbar button, .artifact-toolbar button { margin-left: auto; border: 0; border-radius: 4px; padding: 3px 7px; color: #c9cbc4; background: transparent; cursor: pointer; font-size: 10px; }
+.code-toolbar button:hover, .artifact-toolbar button:hover { color: white; background: rgba(255,255,255,.1); }
+.message-text pre { overflow-x: auto; margin: 0; padding: 13px; color: #e7e5df; font-size: 12px; line-height: 1.6; }
 .message-text code { background: color-mix(in srgb, var(--text) 10%, transparent); padding: 2px 4px; border-radius: 3px; font-size: .9em; }
 .message-text pre code { background: none; padding: 0; }
+.artifact-panel { overflow: hidden; margin: 12px 0 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--input); box-shadow: 0 8px 25px rgba(0,0,0,.06); }
+.artifact-toolbar { color: var(--text); background: var(--bubble); }
+.artifact-toolbar strong { font-size: 11px; font-weight: 650; }.artifact-toolbar span { color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: .09em; margin-left: auto; }.artifact-toolbar button { margin-left: 2px; color: var(--accent); }
+.artifact-panel iframe { display: block; width: 100%; height: 230px; border: 0; background: white; }
 .message-tools { display: flex; gap: 5px; margin-top: 11px; opacity: 0; transition: opacity .15s; }
 .assistant-message:hover .message-tools { opacity: 1; }
 .message-tools button { display: grid; place-items: center; width: 26px; height: 26px; color: var(--subtle); background: none; border: 0; border-radius: 5px; cursor: pointer; font-size: 13px; }

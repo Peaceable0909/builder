@@ -1,5 +1,5 @@
 <h3 align="center"><img width="100" alt="Build logo" src="./icon-256.png"></h3>
-<h3 align="center">AI Builder For Creating Sites and Apps!</h3>
+<h3 align="center">Aster — a calm, capable AI chat workspace</h3>
 
 <p align="center">
     <a href="https://builder.puter.com/"><strong>« LIVE DEMO »</strong></a>
@@ -18,9 +18,9 @@
 
 <br>
 
-## AI Builder
+## Aster Chat
 
-Use AI to build websites and applications without writing any code. An open-source alternative to Lovable, Replit, v0, and similar platforms, AI Builder is licensed under the Apache License 2.0 to ensure freedom and flexibility for developers. Fork it, customize it, and make it your own!
+This fork turns the Puter builder shell into Aster, a Claude-inspired chat workspace. It includes local conversation history, model selection, attachments, code syntax highlighting, and sandboxed HTML artifact previews. It can run in demo mode without a key or connect to Anthropic Claude or OpenAI through the server-side proxy in `server.mjs`.
 
 AI Builder uses <a href="https://developer.puter.com/">Puter.js</a> to provide everything your projects might need; from authentication, storage, and database to serverless functions, hosting, and real-time capabilities, all seamlessly integrated without requiring any additional setup.
 
@@ -44,14 +44,50 @@ Follow the steps below to start building your first website or app.
 
 ## Getting Started
 
-### 💻 Installation
+### Installation
 
 ```bash
-git clone https://github.com/HeyPuter/builder
+git clone https://github.com/Peaceable0909/builder
 cd builder
-npm install
-npm run dev
+pnpm install
+cp .env.example .env
+pnpm dev
 ```
+
+Open `http://localhost:5173` after starting the server.
+
+### Configure Anthropic Claude
+
+Create an API key at [Anthropic Console](https://console.anthropic.com/settings/keys), then add it to `.env`:
+
+```bash
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-5
+```
+
+### Configure OpenAI
+
+Create an API key at [OpenAI Platform](https://platform.openai.com/api-keys), then use:
+
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+The browser only calls the same-origin `/api/chat` endpoint. **Never put either API key in `src/`, `dist/`, or a `VITE_*` variable**; the server reads the key from its environment and forwards requests to the provider. Restart `pnpm dev` after changing `.env`.
+
+### Production
+
+Build the frontend and run the same server in production mode:
+
+```bash
+pnpm build
+NODE_ENV=production pnpm preview
+```
+
+Set the environment variables in your hosting provider's secret settings rather than committing `.env`.
 
 <br>
 
