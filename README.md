@@ -89,6 +89,31 @@ NODE_ENV=production pnpm preview
 
 Set the environment variables in your hosting provider's secret settings rather than committing `.env`.
 
+### Deploy to Vercel
+
+This repository includes `vercel.json` and native Vercel Functions under `api/`, so Vercel serves the Vite output from `dist/` and exposes the secure endpoints at `/api/config` and `/api/chat`. The long-running `server.mjs` remains useful for local development and non-Vercel hosts; it is not required on Vercel.
+
+The Git workflow is the simplest deployment path:
+
+1. Import `https://github.com/Peaceable0909/builder` into a new Vercel project.
+2. Keep the detected Vite settings, or set **Build Command** to `pnpm exec vite build` and **Output Directory** to `dist`.
+3. In **Project Settings → Environment Variables**, add `LLM_PROVIDER` and either the Anthropic or OpenAI variables for the **Production** environment. Do not prefix provider keys with `VITE_`.
+4. Deploy `main`. A later change to an environment variable applies to new deployments, so redeploy after rotating a key.
+
+For CLI deployment:
+
+```bash
+npm install --global vercel
+vercel login
+vercel link
+vercel env add LLM_PROVIDER production
+vercel env add ANTHROPIC_API_KEY production
+vercel env add ANTHROPIC_MODEL production
+vercel --prod
+```
+
+For OpenAI, replace the Anthropic variables with `OPENAI_API_KEY` and `OPENAI_MODEL`. Verify the deployment by opening the site and sending a message; the browser should call the same-origin `/api/chat` route rather than a provider URL directly.
+
 <br>
 
 ### 🌐 Live Demo
