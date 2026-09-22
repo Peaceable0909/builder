@@ -181,4 +181,24 @@ function highlightCode() {
   });
 }
 fetch('/api/config').then(response => response.ok ? response.json() : null).then(config => { if (config) { liveConfig = config; } }).catch(() => {});
-render();
+
+// The production bundler injects classic scripts in <head>. Wait until the
+// body has been parsed before touching #app, otherwise the first render throws
+// on a fresh deployment and leaves a completely blank page.
+function mountChat() {
+  if (!document.querySelector('#app')) return;
+  try {
+    render();
+  } catch (error) {
+    console.error('Aster failed to render; retrying after the document is ready.', error);
+    window.addEventListener('DOMContentLoaded', () => {
+      try { render(); } catch (retryError) { console.error('Aster render retry failed.', retryError); }
+    }, { once: true });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountChat, { once: true });
+} else {
+  mountChat();
+}
