@@ -71,6 +71,7 @@ const SCRIPTS = [
   'js/versions.js',
   'js/issues.js',
   'js/pwa.js',
+  'js/exporters.js',
   'js/chat.js',
 ];
 
