@@ -22,6 +22,8 @@
 
 This fork turns the Puter builder shell into Aster, a Claude-inspired chat workspace. It includes local conversation history, model selection, attachments, code syntax highlighting, and sandboxed HTML artifact previews. It can run in demo mode without a key or connect to Anthropic Claude or OpenAI through the server-side proxy in `server.mjs`.
 
+Responses from configured providers stream into the conversation in real time over Server-Sent Events. If no provider key is configured, the site remains usable: it uses local demo responses and simulates the same streaming behavior without making any external API request.
+
 AI Builder uses <a href="https://developer.puter.com/">Puter.js</a> to provide everything your projects might need; from authentication, storage, and database to serverless functions, hosting, and real-time capabilities, all seamlessly integrated without requiring any additional setup.
 
 <br>

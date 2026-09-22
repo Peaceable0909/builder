@@ -122,17 +122,40 @@ async function sendMessage(event) {
   event.preventDefault(); const input = document.querySelector('#prompt'); const text = input.value.trim(); if (!text || document.querySelector('#typing').classList.contains('visible')) return;
   const chat = activeChat(); chat.messages.push({ role: 'user', content: text, attachment: attachedFile?.name }); if (chat.title === 'New conversation') chat.title = text.slice(0, 34); attachedFile = null; saveState(); render();
   const typing = document.querySelector('#typing'); typing.classList.add('visible'); document.querySelector('#prompt').disabled = true;
-  const response = await getResponse(chat);
-  chat.messages.push({ role: 'assistant', content: response }); saveState(); render();
+  const assistant = { role: 'assistant', content: '' };
+  chat.messages.push(assistant); saveState(); render();
+  const response = await getResponse(chat, chunk => { assistant.content += chunk; saveState(); render(); });
+  if (response && !assistant.content) assistant.content = response;
+  saveState(); render();
 }
-async function getResponse(chat) {
-  const text = chat.messages.at(-1)?.content || '';
+async function getResponse(chat, onChunk = () => {}) {
+  const text = [...chat.messages].reverse().find(message => message.role === 'user')?.content || '';
   if (liveConfig.live) {
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: selectedModel, messages: chat.messages }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Live model request failed.');
-      return result.content;
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: selectedModel, messages: chat.messages.slice(0, -1), stream: true }) });
+      if (!response.ok) { const result = await response.json(); throw new Error(result.error || 'Live model request failed.'); }
+      if (!response.body) throw new Error('The provider did not return a stream.');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+        for (const event of events) {
+          const line = event.split('\n').find(item => item.startsWith('data:'));
+          if (!line) continue;
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') continue;
+          const payload = JSON.parse(data);
+          if (payload.error) throw new Error(payload.error);
+          if (payload.text) { fullText += payload.text; onChunk(payload.text); }
+        }
+      }
+      return fullText;
     } catch (error) {
       console.error(error);
       return `I couldn’t reach the configured ${liveConfig.provider || 'LLM'} provider. Check the server logs and API key, then try again.\n\n_${error.message}_`;
@@ -141,12 +164,14 @@ async function getResponse(chat) {
   if (window.puter?.ai?.chat) {
     try { const result = await window.puter.ai.chat(text, { model: selectedModel.toLowerCase().replace('aster ', 'claude-'), stream: false }); return typeof result === 'string' ? result : result?.message?.content || result?.text || 'I’m ready to help. What should we explore next?'; } catch (error) { console.warn('Puter AI unavailable, using demo response', error); }
   }
-  await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 700));
+  await new Promise(resolve => setTimeout(resolve, 350));
   const lower = text.toLowerCase();
-  if (lower.includes('plan') || lower.includes('project')) return `Absolutely. Let’s make this concrete.\n\n**A simple way to start:**\n1. Define the outcome you want.\n2. Break it into the smallest useful milestones.\n3. Pick the first step you can finish in 30 minutes.\n\nTell me a little more about the project and I’ll help shape the plan around your constraints.`;
-  if (lower.includes('write') || lower.includes('writing')) return `I’d be happy to help improve it. Paste the draft here and tell me what you want to optimize for — clarity, warmth, persuasion, brevity, or a specific audience.`;
-  if (lower.includes('explain') || lower.includes('learn')) return `Let’s take it one layer at a time. Share the topic, and I’ll explain it in plain language first, then add an example and the deeper details if they’re useful.`;
-  return `That’s an interesting place to begin. I can help you reason through it, explore options, or turn it into an actionable next step. What matters most about this for you?`;
+  const demo = lower.includes('plan') || lower.includes('project') ? `Absolutely. Let’s make this concrete.\n\n**A simple way to start:**\n1. Define the outcome you want.\n2. Break it into the smallest useful milestones.\n3. Pick the first step you can finish in 30 minutes.\n\nTell me a little more about the project and I’ll help shape the plan around your constraints.`
+    : lower.includes('write') || lower.includes('writing') ? `I’d be happy to help improve it. Paste the draft here and tell me what you want to optimize for — clarity, warmth, persuasion, brevity, or a specific audience.`
+      : lower.includes('explain') || lower.includes('learn') ? `Let’s take it one layer at a time. Share the topic, and I’ll explain it in plain language first, then add an example and the deeper details if they’re useful.`
+        : `That’s an interesting place to begin. I can help you reason through it, explore options, or turn it into an actionable next step. What matters most about this for you?`;
+  for (const chunk of demo.match(/.{1,18}(?:\s+|$)/g) || [demo]) { onChunk(chunk); await new Promise(resolve => setTimeout(resolve, 28)); }
+  return '';
 }
 
 window.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); handleAction('new-chat'); } if (event.key === 'Escape') document.querySelector('#model-menu')?.classList.remove('open'); });

@@ -65,6 +65,43 @@ async function chat(body) {
   return { content: result.choices?.[0]?.message?.content || '', provider: 'openai', model: payload.model };
 }
 
+async function streamChat(body, res) {
+  const activeProvider = configuredProvider();
+  if (!activeProvider) {
+    const name = provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+    throw Object.assign(new Error(`Set ${name} on the server before using live chat.`), { status: 503 });
+  }
+  const messages = Array.isArray(body.messages) ? body.messages.filter(message => ['user', 'assistant'].includes(message.role) && typeof message.content === 'string').slice(-40) : [];
+  const system = typeof body.system === 'string' ? body.system.slice(0, 12_000) : undefined;
+  const requestedModel = typeof body.model === 'string' ? body.model : '';
+  const isAnthropic = activeProvider === 'anthropic';
+  const payload = isAnthropic
+    ? { model: process.env.ANTHROPIC_MODEL || requestedModel || 'claude-sonnet-4-5', max_tokens: 4096, messages, stream: true }
+    : { model: process.env.OPENAI_MODEL || requestedModel || 'gpt-4o-mini', messages: system ? [{ role: 'system', content: system }, ...messages] : messages, temperature: 0.3, stream: true };
+  if (isAnthropic && system) payload.system = system;
+  const upstream = await fetch(isAnthropic ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/chat/completions', { method: 'POST', headers: isAnthropic ? { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' } : { 'content-type': 'application/json', authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: JSON.stringify(payload) });
+  if (!upstream.ok) { const result = await upstream.json(); throw Object.assign(new Error(result?.error?.message || 'Provider request failed.'), { status: upstream.status }); }
+  res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for await (const chunk of upstream.body) {
+    buffer += decoder.decode(chunk, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      const raw = line.slice(5).trim();
+      if (!raw || raw === '[DONE]') continue;
+      try {
+        const event = JSON.parse(raw);
+        const text = isAnthropic ? event.delta?.text || '' : event.choices?.[0]?.delta?.content || '';
+        if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      } catch { /* Ignore provider keep-alive or non-JSON lines. */ }
+    }
+  }
+  res.end('data: [DONE]\n\n');
+}
+
 async function serveStatic(req, res) {
   const urlPath = new URL(req.url, 'http://localhost').pathname;
   const requested = urlPath === '/' ? '/index.html' : urlPath;
@@ -84,7 +121,7 @@ async function main() {
   const server = createServer(async (req, res) => {
     try {
       if (req.method === 'GET' && req.url === '/api/config') return json(res, 200, { provider: configuredProvider(), live: !!configuredProvider() });
-      if (req.method === 'POST' && req.url === '/api/chat') return json(res, 200, await chat(await readBody(req)));
+      if (req.method === 'POST' && req.url === '/api/chat') { const body = await readBody(req); if (body.stream === true) return await streamChat(body, res); return json(res, 200, await chat(body)); }
       if (!isProduction) return vite.middlewares(req, res, () => {});
       return serveStatic(req, res);
     } catch (error) { json(res, error.status || 500, { error: error.message || 'Unexpected server error' }); }
