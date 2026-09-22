@@ -132,6 +132,7 @@ async function sendMessage(event) {
   try {
     const response = await getResponse(chat, chunk => { assistant.content += chunk; saveState(); render(); });
     if (response && !assistant.content) assistant.content = response;
+    if (!assistant.content) assistant.content = 'I did not receive a response. Connect Puter AI or add a provider in Settings, then try again.';
   } catch (error) {
     console.error('Peaceable failed to answer the message.', error);
     assistant.content = 'I could not complete that request. Check your AI provider connection and try again.';
