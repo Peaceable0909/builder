@@ -20,6 +20,12 @@ let selectedModel = 'Peaceable Sonnet';
 let attachedFile = null;
 const artifactSources = new Map();
 let liveConfig = { live: false, provider: null };
+const PUTER_MODELS = {
+  'Peaceable Sonnet': 'claude-sonnet-4-5',
+  'Peaceable Opus': 'claude-opus-4-1',
+  'Peaceable Haiku': 'claude-haiku-4-5',
+};
+const CODING_SYSTEM_PROMPT = `You are Peaceable, a thoughtful Claude-like coding assistant. Help the user design, write, debug, and improve software. Give direct, practical answers. When code is requested, provide complete runnable code in fenced code blocks with the correct language. Explain important choices briefly, call out assumptions, and prefer secure, accessible, maintainable solutions. If the user asks for an HTML artifact, return a complete self-contained HTML document so it can be previewed.`;
 
 function loadState() {
   try {
@@ -162,7 +168,22 @@ async function getResponse(chat, onChunk = () => {}) {
     }
   }
   if (window.puter?.ai?.chat) {
-    try { const result = await window.puter.ai.chat(text, { model: selectedModel.toLowerCase().replace('peaceable ', 'claude-'), stream: false }); return typeof result === 'string' ? result : result?.message?.content || result?.text || 'I’m ready to help. What should we explore next?'; } catch (error) { console.warn('Puter AI unavailable, using demo response', error); }
+    try {
+      const history = [
+        { role: 'system', content: CODING_SYSTEM_PROMPT },
+        ...chat.messages.slice(0, -1).map(message => ({ role: message.role, content: message.content })),
+      ];
+      const response = await window.puter.ai.chat(history, {
+        model: PUTER_MODELS[selectedModel] || PUTER_MODELS['Peaceable Sonnet'],
+        stream: true,
+      });
+      let fullText = '';
+      for await (const part of response) {
+        const textChunk = typeof part === 'string' ? part : part?.text || part?.delta?.text || part?.message?.content || '';
+        if (textChunk) { fullText += textChunk; onChunk(textChunk); }
+      }
+      if (fullText) return fullText;
+    } catch (error) { console.warn('Puter AI unavailable, using offline demo response', error); }
   }
   await new Promise(resolve => setTimeout(resolve, 350));
   const lower = text.toLowerCase();
